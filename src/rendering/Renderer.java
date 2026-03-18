@@ -32,7 +32,7 @@ public class Renderer {
 //        }
 
         for (int i = 0; i < scene.wavePackets.size(); i ++) {
-            Vec2 currPos = Vec2.scale(scene.wavePackets.get(i).pos(this.scene.time), new Vec2(width, height));
+            Vec2 currPos = Vec2.scale(scene.wavePackets.get(i).pos(this.scene.simulation.canonicalTime), new Vec2(width, height));
             g.fillRect((int) currPos.x, (int) currPos.y, 5, 5);
         }
 

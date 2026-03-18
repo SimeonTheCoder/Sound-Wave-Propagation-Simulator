@@ -2,6 +2,7 @@ import output.AudioFileWriter;
 import rendering.Renderer;
 import scene.Scene;
 import scene.geometry.Rect;
+import simulation.SimulationThread;
 import simulation.WavePacket;
 import math.Vec2;
 import rendering.Settings;
@@ -26,7 +27,7 @@ public class Main {
 
         scene.sceneGeometry.add(
                 new Rect(
-                        new Vec2(0, 0.9),
+                        new Vec2(0, 0.1),
                         new Vec2(1, 1)
                 )
         );
@@ -59,7 +60,7 @@ public class Main {
     public static void main(String[] args) throws Exception {
         Scene scene = new Scene();
 
-        for (int i = 0; i < 99; i ++) {
+        for (int i = 0; i < 10 * Settings.THREAD_COUNT - 1; i ++) {
             System.out.print(" ");
         }
 
@@ -68,10 +69,10 @@ public class Main {
         for (int i = 0; i < Settings.WAVE_SEGMENTS; i ++) {
             scene.wavePackets.add(
                     new WavePacket(
-                            new Vec2(0.7, 0.5),
+                            new Vec2(0.4, 0.5),
                             ((double) i / Settings.WAVE_SEGMENTS) * 360.0,
                             1,
-                            10000000,
+                            10000,
                             0
                     )
             );
@@ -81,22 +82,23 @@ public class Main {
 
         Simulation simulation = new Simulation(scene);
 
-//        while (!simulation.finished) {
-//            simulation.step();
-//        }
+        simulation.setListenerPos(new Vec2(0.6, 0.5));
+        simulation.buildDistanceField();
 
         scene.attachSimulation(simulation);
 
-        Renderer renderer = new Renderer(scene);
+        simulation.start();
 
-        Window window = new Window("Wave Propagation Sim v0.1", 1000, 1000, renderer);
-//        window.attachTimer(scene);
-
-        while (!simulation.finished) {
-            scene.tick();
+        if (Settings.RENDERING_ENABLED) {
+            Renderer renderer = new Renderer(scene);
+            Window window = new Window("Wave Propagation Sim v0.1", 1000, 1000, renderer);
         }
 
-//        while(!simulation.finished) {}
+        for (SimulationThread thread : simulation.threads) {
+            thread.join();
+        }
+
+        simulation.mergeSamples();
 
         AudioFileWriter fileWriter = new AudioFileWriter();
         fileWriter.writeFromData(simulation.leftSamples, simulation.rightSamples);

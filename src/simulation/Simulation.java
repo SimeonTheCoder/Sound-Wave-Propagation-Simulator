@@ -3,41 +3,61 @@ package simulation;
 import scene.Scene;
 import math.Vec2;
 import rendering.Settings;
-import scene.geometry.Obstacle;
-import scene.geometry.Rect;
-import utils.FileUtils;
 
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.Arrays;
 
 public class Simulation {
-    private static final String PATH = "output/data/";
-
     public Scene scene;
 
     public double[] leftSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
     public double[] rightSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
 
-    public boolean finished = false;
-    private int progress;
+    public SimulationThread[] threads;
 
-    private double previousTime = 0;
-    private final Rect observerRect = new Rect(
-            new Vec2(0.27, 0.47),
-            new Vec2(0.33, 0.53)
-    );
+    public double canonicalTime;
 
     public Simulation(Scene scene) {
         this.scene = scene;
+
+        this.threads = new SimulationThread[Settings.THREAD_COUNT];
+
+        for (int i = 0; i < threads.length; i ++) {
+            this.threads[i] = new SimulationThread(scene, i);
+        }
     }
 
-    public Obstacle getCollision(Vec2 pos) {
-        for (Obstacle obstacle : scene.sceneGeometry) {
-            if (obstacle.isInside(pos)) return obstacle;
+    public void setListenerPos(Vec2 pos) {
+        for (SimulationThread thread : this.threads)
+            thread.listenerPos = pos;
+    }
+
+    public void buildDistanceField() {
+        for (SimulationThread thread : this.threads)
+            thread.buildDistanceField();
+    }
+
+    public boolean isFinished() {
+        boolean finished = true;
+
+        if (Settings.RENDERING_ENABLED)
+            this.canonicalTime = threads[0].time;
+
+        for (SimulationThread thread : this.threads) {
+            finished = finished && thread.finished;
+
+            if (Settings.RENDERING_ENABLED)
+                this.canonicalTime = Math.min(this.canonicalTime, thread.time);
         }
 
-        return null;
+        if (Settings.RENDERING_ENABLED)
+            scene.time = this.canonicalTime;
+
+        return finished;
+    }
+
+    public void start() {
+        for (SimulationThread thread : this.threads)
+            thread.start();
     }
 
     public void normalizeSamples() {
@@ -49,96 +69,14 @@ public class Simulation {
         }
     }
 
-    public void exportDataToFile() {
-        StringBuilder sb = new StringBuilder();
-
-        normalizeSamples();
-
-        for(int i = 0; i < Settings.SAMPLE_RATE * Settings.DURATION; i ++)
-            sb.append(i).append(",").append(this.leftSamples[i]).append(",").append(this.rightSamples[i]).append("\n");
-
-        try {
-            FileWriter fileWriter = new FileWriter(PATH + FileUtils.findAvailableFilename(PATH, "output") + ".csv");
-            fileWriter.write(sb.toString());
-            fileWriter.close();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    public void step() {
-        this.scene.time += Settings.DELAY_MS / 1000.0;
-
-        if (progress != (int) ((this.scene.time / 343.0 / Settings.DURATION) * 100)) {
-            System.out.print("#");
-            progress = (int) ((this.scene.time / 343.0 / Settings.DURATION) * 100);
-        }
-
-        if (this.scene.time >= Settings.DURATION * 343) {
-            normalizeSamples();
-            finished = true;
-            return;
-        }
-
-        for (int i = 0; i < Settings.SUBSTEPS; i++) {
-            double k = (i / ((double) Settings.SUBSTEPS));
-            double timeInterpolated = this.scene.time * k + this.previousTime * (1 - k);
-
-            for (WavePacket packet : scene.wavePackets) {
-                Vec2 currPos = packet.pos(timeInterpolated);
-
-                if (observerRect.isInside(currPos)) {
-                    double travelledDistance = (timeInterpolated / 1000.0) * 343.0 * Settings.SCALE;
-
-                    Vec2 toMicVector = Vec2.negative(currPos).add(observerRect.center).normalized();
-
-                    double pan = Vec2.dot(toMicVector, new Vec2(0, -1));
-
-                    double amplitude = Math.min(1, 1.0 / Math.pow(travelledDistance, 2)) / Settings.WAVE_SEGMENTS / Settings.SUBSTEPS / 343.0 * packet.amplitude;
-
-                    int sampleIndex = (int) (timeInterpolated * Settings.SAMPLE_RATE / 343.0);
-                    if (sampleIndex < 0 || sampleIndex >= leftSamples.length) continue;
-
-                    double leftAmount = amplitude * (1 - pan) * 0.5;
-                    double rightAmount = amplitude * (1 + pan) * 0.5;
-
-                    leftSamples[sampleIndex] += leftAmount;
-                    rightSamples[sampleIndex] += rightAmount;
-
-                    if (Settings.ENABLE_SAMPLE_SMOOTHING && sampleIndex > 1 && sampleIndex < leftSamples.length - 2) {
-                        leftSamples[sampleIndex - 2] += leftAmount * 0.125;
-                        rightSamples[sampleIndex - 2] += rightAmount * 0.125;
-                        leftSamples[sampleIndex - 1] += leftAmount * 0.25;
-                        rightSamples[sampleIndex - 1] += rightAmount * 0.25;
-                        leftSamples[sampleIndex + 1] += leftAmount * 0.25;
-                        rightSamples[sampleIndex + 1] += rightAmount * 0.25;
-                        leftSamples[sampleIndex + 2] += leftAmount * 0.125;
-                        rightSamples[sampleIndex + 2] += rightAmount * 0.125;
-                    }
-                }
-
-                Obstacle collidingObject = getCollision(currPos);
-                if (collidingObject == null) continue;
-
-                double backInTime = 0.001;
-
-                while (getCollision(packet.pos(timeInterpolated - backInTime)) != null)
-                    backInTime += 0.001;
-
-                Vec2 prevPos = packet.pos(timeInterpolated - backInTime);
-
-                Vec2 V = packet.velocity;
-                Vec2 N = collidingObject.normal(prevPos);
-
-                double dot = Vec2.dot(V, N);
-
-                packet.velocity = new Vec2(-2 * dot).scale(N).add(V);
-
-                packet.origin = prevPos;
-                packet.creationTime = timeInterpolated;
+    public void mergeSamples() {
+        for (int i = 0; i < leftSamples.length; i ++) {
+            for (SimulationThread thread : this.threads) {
+                this.leftSamples[i] += thread.leftSamples[i];
+                this.rightSamples[i] += thread.rightSamples[i];
             }
         }
 
-        previousTime = this.scene.time;
+        normalizeSamples();
     }
 }

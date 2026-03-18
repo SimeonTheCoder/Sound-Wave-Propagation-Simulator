@@ -22,18 +22,7 @@ public class Window extends JPanel {
         frame.add(this);
 
         frame.setVisible(true);
-
-//        javax.swing.Timer t = new javax.swing.Timer(Settings.DELAY_MS, _ -> repaint());
-//        t.start();
     }
-
-//    public void attachTimer(Scene scene) {
-//        javax.swing.Timer t2 = new javax.swing.Timer(Settings.DELAY_MS, _ -> {
-//            scene.tick();
-//        });
-//
-//        t2.start();
-//    }
 
     @Override
     public void paint(Graphics g) {

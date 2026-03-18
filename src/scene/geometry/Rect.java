@@ -40,4 +40,19 @@ public class Rect implements Obstacle {
 
         return Vec2.negative(pos).add(center).normalized();
     }
+
+    @Override
+    public double distance(Vec2 pos) {
+        if (pos.x > to.x) {
+            return pos.x - to.x;
+        } else if (pos.x < from.x) {
+            return from.x - pos.x;
+        } else if (pos.y < from.y) {
+            return from.y - pos.y;
+        } else if (pos.y > to.y) {
+            return to.y - pos.y;
+        }
+
+        return -1;
+    }
 }
