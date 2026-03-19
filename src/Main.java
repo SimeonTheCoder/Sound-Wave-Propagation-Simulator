@@ -27,7 +27,7 @@ public class Main {
 
         scene.sceneGeometry.add(
                 new Rect(
-                        new Vec2(0, 0.1),
+                        new Vec2(0, 0.9),
                         new Vec2(1, 1)
                 )
         );
@@ -69,7 +69,7 @@ public class Main {
         for (int i = 0; i < Settings.WAVE_SEGMENTS; i ++) {
             scene.wavePackets.add(
                     new WavePacket(
-                            new Vec2(0.4, 0.5),
+                            new Vec2(0.49, 0.5),
                             ((double) i / Settings.WAVE_SEGMENTS) * 360.0,
                             1,
                             10000,
@@ -82,7 +82,7 @@ public class Main {
 
         Simulation simulation = new Simulation(scene);
 
-        simulation.setListenerPos(new Vec2(0.6, 0.5));
+        simulation.setListenerPos(new Vec2(0.51, 0.5));
         simulation.buildDistanceField();
 
         scene.attachSimulation(simulation);

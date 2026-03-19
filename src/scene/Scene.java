@@ -1,7 +1,6 @@
 package scene;
 
 import math.Vec2;
-import rendering.Settings;
 import scene.geometry.Obstacle;
 import simulation.Simulation;
 import simulation.WavePacket;

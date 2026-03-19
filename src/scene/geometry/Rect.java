@@ -55,4 +55,9 @@ public class Rect implements Obstacle {
 
         return -1;
     }
+
+    @Override
+    public Obstacle clone() {
+        return new Rect(from.clone(), to.clone());
+    }
 }

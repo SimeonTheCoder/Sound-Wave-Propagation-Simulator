@@ -7,4 +7,6 @@ public interface Obstacle {
 
     Vec2 normal (Vec2 pos);
     double distance (Vec2 pos);
+
+    Obstacle clone();
 }

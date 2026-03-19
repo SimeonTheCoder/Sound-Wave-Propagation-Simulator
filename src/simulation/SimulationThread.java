@@ -6,19 +6,17 @@ import scene.Scene;
 import scene.geometry.Obstacle;
 
 public class SimulationThread extends Thread {
-    private static final String PATH = "output/data/";
-
-    public volatile double time = 0;
-
-    public Scene scene;
+    public double time = 0;
 
     public double[] leftSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
     public double[] rightSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
 
+    public WavePacket[] wavePackets;
+    public Obstacle[] obstacles;
+
     private final double[][] distanceField = new double[100][100];
 
     public volatile boolean finished = false;
-    private int progress;
 
     private double previousTime = 0;
 
@@ -26,59 +24,51 @@ public class SimulationThread extends Thread {
 
     public int threadIndex;
 
-    private int START;
-    private int END;
+    private final int wavePacketCount;
+    private final Vec2 panVector = new Vec2(0, -1);
 
     public SimulationThread(Scene scene, int index) {
-        this.scene = scene;
         this.threadIndex = index;
 
-        calculateBounds();
-    }
+        int startPacketIndex = scene.wavePackets.size() / Settings.THREAD_COUNT * threadIndex;
+        int endPacketIndex = scene.wavePackets.size() / Settings.THREAD_COUNT * (threadIndex + 1);
 
-    public void calculateBounds() {
-        this.START = this.scene.wavePackets.size() / Settings.THREAD_COUNT * threadIndex;
-        this.END = this.scene.wavePackets.size() / Settings.THREAD_COUNT * (threadIndex + 1);
+        this.wavePacketCount = endPacketIndex - startPacketIndex;
+
+        this.wavePackets = new WavePacket[wavePacketCount];
+        this.obstacles = new Obstacle[scene.sceneGeometry.size()];
+
+        for (int i = startPacketIndex; i < endPacketIndex; i ++) {
+            wavePackets[i - startPacketIndex] = scene.wavePackets.get(i).clone();
+        }
+
+        for (int i = 0; i < obstacles.length; i ++) {
+            obstacles[i] = scene.sceneGeometry.get(i).clone();
+        }
     }
 
     public Obstacle getCollision(Vec2 pos) {
-        for (Obstacle obstacle : scene.sceneGeometry) {
+        for (Obstacle obstacle : obstacles) {
             if (obstacle.isInside(pos)) return obstacle;
         }
 
         return null;
     }
 
-//    public void normalizeSamples() {
-//        double maxAmplitude = Math.max(Arrays.stream(leftSamples).max().orElse(1.0), Arrays.stream(rightSamples).max().orElse(1.0)) + 0.001;
-//
-//        for(int i = 0; i < Settings.SAMPLE_RATE * Settings.DURATION; i ++) {
-//            this.leftSamples[i] /= maxAmplitude;
-//            this.rightSamples[i] /= maxAmplitude;
-//        }
-//    }
+    public double getMinDistance(Vec2 pos) {
+        double minDistance = 1000;
 
-//    public void exportDataToFile() {
-//        StringBuilder sb = new StringBuilder();
-//
-////        normalizeSamples();
-//
-//        for(int i = 0; i < Settings.SAMPLE_RATE * Settings.DURATION; i ++)
-//            sb.append(i).append(",").append(this.leftSamples[i]).append(",").append(this.rightSamples[i]).append("\n");
-//
-//        try {
-//            FileWriter fileWriter = new FileWriter(PATH + FileUtils.findAvailableFilename(PATH, "output") + ".csv");
-//            fileWriter.write(sb.toString());
-//            fileWriter.close();
-//        } catch (IOException e) {
-//            throw new RuntimeException(e);
-//        }
-//    }
+        for (Obstacle obstacle : obstacles) {
+            minDistance = Math.min(minDistance, obstacle.distance(pos));
+        }
+
+        return minDistance;
+    }
 
     public void buildDistanceField() {
         for (int i = 0; i < 100; i ++) {
             for (int j = 0; j < 100; j ++) {
-                this.distanceField[i][j] = scene.getMinDistance(new Vec2(i / 100.0, j / 100.0)) - 0.1;
+                this.distanceField[i][j] = getMinDistance(new Vec2(i / 100.0, j / 100.0)) - 0.1;
             }
         }
     }
@@ -91,15 +81,17 @@ public class SimulationThread extends Thread {
     }
 
     public void calculateReceivedSignal(double time, Vec2 currPos, double packetAmplitude) {
-        double travelledDistance = (time / 1000.0) * 343.0 * Settings.SCALE;
+        double travelledDistance = Math.max(0.01, (time / 1000.0) * 343.0 * Settings.SCALE);
 
         Vec2 toMicVector = Vec2.negative(currPos).add(listenerPos);
 
-        double micStrength = Math.max(0, Math.min(1, 1.0 / Math.pow(toMicVector.length() * 120 + 1, 3)));
+        double micCoefficient = toMicVector.length() * 120 + 1;
 
-        double pan = Vec2.dot(Vec2.normalize(toMicVector), new Vec2(0, -1));
+        double micStrength = Math.max(0, Math.min(1, 1.0 / (micCoefficient * micCoefficient * micCoefficient)));
 
-        double amplitude = Math.min(1, 1.0 / Math.pow(travelledDistance, 2)) / Settings.WAVE_SEGMENTS / 343.0 / Settings.SUBSTEPS * packetAmplitude * micStrength;
+        double pan = Vec2.dot(toMicVector.length() > 0.01 ? Vec2.normalize(toMicVector) : new Vec2(0, 0), panVector);
+
+        double amplitude = Math.min(1, 1.0 / (travelledDistance * travelledDistance)) / Settings.WAVE_SEGMENTS / 343.0 / Settings.SUBSTEPS * packetAmplitude * micStrength;
 
         int sampleIndex = (int) (time * Settings.SAMPLE_RATE / 343.0);
         if (sampleIndex < 0 || sampleIndex >= leftSamples.length) return;
@@ -148,13 +140,7 @@ public class SimulationThread extends Thread {
     public void step() {
         this.time += Settings.DELAY_MS / 1000.0;
 
-//        if (progress != (int) ((this.time / 343.0 / Settings.DURATION) * 10)) {
-//            System.out.print("#");
-//            progress = (int) ((this.time / 343.0 / Settings.DURATION) * 10);
-//        }
-
         if (this.time >= Settings.DURATION * 343) {
-//            normalizeSamples();
             finished = true;
             return;
         }
@@ -163,8 +149,8 @@ public class SimulationThread extends Thread {
             double k = (i / ((double) Settings.SUBSTEPS));
             double timeInterpolated = this.time * k + this.previousTime * (1 - k);
 
-            for (int j = this.START; j < this.END; j ++) {
-                handleWavePacket(this.scene.wavePackets.get(j), timeInterpolated);
+            for (int j = 0; j < this.wavePacketCount; j ++) {
+                handleWavePacket(this.wavePackets[j], timeInterpolated);
             }
         }
 

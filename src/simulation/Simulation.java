@@ -28,7 +28,7 @@ public class Simulation {
 
     public void setListenerPos(Vec2 pos) {
         for (SimulationThread thread : this.threads)
-            thread.listenerPos = pos;
+            thread.listenerPos = pos.clone();
     }
 
     public void buildDistanceField() {
@@ -71,6 +71,10 @@ public class Simulation {
 
     public void mergeSamples() {
         for (int i = 0; i < leftSamples.length; i ++) {
+            if (i == 7) {
+                System.out.println();
+            }
+
             for (SimulationThread thread : this.threads) {
                 this.leftSamples[i] += thread.leftSamples[i];
                 this.rightSamples[i] += thread.rightSamples[i];

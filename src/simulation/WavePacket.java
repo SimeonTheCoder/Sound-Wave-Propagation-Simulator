@@ -29,4 +29,12 @@ public class WavePacket {
         Vec2 offset = new Vec2((time - this.creationTime)).scale(this.velocity);
         return offset.add(this.origin);
     };
+
+    public WavePacket clone() {
+        WavePacket newPacket = new WavePacket(this.origin.clone(), this.angle, this.speed, this.amplitude, this.creationTime);
+        newPacket.velocity = this.velocity.clone();
+        newPacket.origin = this.origin.clone();
+
+        return newPacket;
+    }
 }

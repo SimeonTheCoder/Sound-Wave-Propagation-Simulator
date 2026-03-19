@@ -60,4 +60,8 @@ public class Vec2 {
 
         return this;
     }
+
+    public Vec2 clone() {
+        return new Vec2(this.x, this.y);
+    }
 }
