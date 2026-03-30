@@ -44,6 +44,7 @@ public class Simulation {
 
         for (SimulationThread thread : this.threads) {
             finished = finished && thread.finished;
+//            System.out.println(thread.time);
 
             if (Settings.RENDERING_ENABLED)
                 this.canonicalTime = Math.min(this.canonicalTime, thread.time);
@@ -51,6 +52,8 @@ public class Simulation {
 
         if (Settings.RENDERING_ENABLED)
             scene.time = this.canonicalTime;
+
+//        System.out.println(this.canonicalTime);
 
         return finished;
     }
@@ -71,10 +74,6 @@ public class Simulation {
 
     public void mergeSamples() {
         for (int i = 0; i < leftSamples.length; i ++) {
-            if (i == 7) {
-                System.out.println();
-            }
-
             for (SimulationThread thread : this.threads) {
                 this.leftSamples[i] += thread.leftSamples[i];
                 this.rightSamples[i] += thread.rightSamples[i];

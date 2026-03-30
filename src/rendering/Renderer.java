@@ -31,10 +31,13 @@ public class Renderer {
 //            prevPos = currPos;
 //        }
 
-//        for (int i = 0; i < scene.wavePackets.size(); i ++) {
-//            Vec2 currPos = Vec2.scale(scene.wavePackets.get(i).pos(this.scene.simulation.canonicalTime), new Vec2(width, height));
-//            g.fillRect((int) currPos.x, (int) currPos.y, 5, 5);
-//        }
+        for (int j = 0; j < scene.simulation.threads.length; j ++) {
+            for (int i = 0; i < scene.simulation.threads[j].wavePackets.length; i++) {
+                Vec2 currPos = Vec2.scale(scene.simulation.threads[j].wavePackets[i].pos(this.scene.simulation.canonicalTime), new Vec2(width, height));
+//                System.out.println(currPos.x + " " + currPos.y);
+                g.fillRect((int) currPos.x, (int) currPos.y, 5, 5);
+            }
+        }
 
 //        g.drawPolygon(polygon);
 

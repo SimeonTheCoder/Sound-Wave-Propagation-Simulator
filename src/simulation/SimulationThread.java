@@ -6,7 +6,7 @@ import scene.Scene;
 import scene.geometry.Obstacle;
 
 public class SimulationThread extends Thread {
-    public double time = 0;
+    public volatile double time = 0;
 
     public double[] leftSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
     public double[] rightSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
@@ -80,8 +80,8 @@ public class SimulationThread extends Thread {
         return distanceField[cellY][cellX] > 0;
     }
 
-    public void calculateReceivedSignal(double time, Vec2 currPos, double packetAmplitude) {
-        double travelledDistance = Math.max(0.01, (time / 1000.0) * 343.0 * Settings.SCALE);
+    public void calculateReceivedSignal(double time, Vec2 currPos, WavePacket packet) {
+        double travelledDistance = Math.max(0.01, time * 343.0 / 1000.0 * Settings.SCALE);
 
         Vec2 toMicVector = Vec2.negative(currPos).add(listenerPos);
 
@@ -91,13 +91,21 @@ public class SimulationThread extends Thread {
 
         double pan = Vec2.dot(toMicVector.length() > 0.01 ? Vec2.normalize(toMicVector) : new Vec2(0, 0), panVector);
 
-        double amplitude = Math.min(1, 1.0 / (travelledDistance * travelledDistance)) / Settings.WAVE_SEGMENTS / 343.0 / Settings.SUBSTEPS * packetAmplitude * micStrength;
+        double amplitude = Math.min(1, 1.0 / (travelledDistance * travelledDistance)) / Settings.WAVE_SEGMENTS / 343.0 / Settings.SUBSTEPS * packet.amplitude * micStrength;
+        amplitude *= airAttenuation(packet.frequency, travelledDistance);
 
         int sampleIndex = (int) (time * Settings.SAMPLE_RATE / 343.0);
         if (sampleIndex < 0 || sampleIndex >= leftSamples.length) return;
 
-        double leftAmount = amplitude * (1 - pan) * 0.5;
-        double rightAmount = amplitude * (1 + pan) * 0.5;
+        double tau = time * Settings.SCALE;
+        double tSample = sampleIndex / (double) Settings.SAMPLE_RATE;
+
+        double phase = packet.angularFrequency * (tSample - tau);
+
+        double contribution = amplitude * Math.cos(phase);
+
+        double leftAmount = contribution * (1 - pan) * 0.5;
+        double rightAmount = contribution * (1 + pan) * 0.5;
 
         leftSamples[sampleIndex] += leftAmount;
         rightSamples[sampleIndex] += rightAmount;
@@ -112,7 +120,7 @@ public class SimulationThread extends Thread {
 
     public void handleWavePacket(WavePacket packet, double time) {
         Vec2 currPos = packet.pos(time);
-        calculateReceivedSignal(time, currPos, packet.amplitude);
+        calculateReceivedSignal(time, currPos, packet);
 
         if (checkDistanceField(currPos))
             return;
@@ -130,6 +138,17 @@ public class SimulationThread extends Thread {
         packet.velocity = new Vec2(-2 * dot).scale(collisionNormal).add(packet.velocity);
         packet.origin = prevPos;
         packet.creationTime = time;
+        packet.amplitude *= reflectionCoefficient(packet.frequency);
+    }
+
+    public double reflectionCoefficient(double frequency) {
+        double cutoff = 2000.0; // Hz
+        return 1.0 / (1.0 + frequency / cutoff);
+    }
+
+    public double airAttenuation(double frequency, double distance) {
+        double alpha = 0.0001 * frequency; // simple model
+        return Math.exp(-alpha * distance);
     }
 
     @Override

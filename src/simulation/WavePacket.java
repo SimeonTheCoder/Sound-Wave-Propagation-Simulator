@@ -7,16 +7,20 @@ public class WavePacket {
     public double creationTime;
     public double angle;
     public double amplitude;
+    public double frequency;
+    public double angularFrequency;
 
     public Vec2 velocity;
     public Vec2 origin;
 
-    public WavePacket(Vec2 origin, double angle, double speed, double amplitude, double creationTime) {
+    public WavePacket(Vec2 origin, double angle, double speed, double amplitude, double creationTime, double frequency) {
         this.origin = origin;
         this.angle = Math.toRadians(angle);
         this.speed = speed;
         this.creationTime = creationTime;
         this.amplitude = amplitude;
+        this.frequency = frequency;
+        this.angularFrequency = this.frequency * Math.PI * 2;
 
         calculateVelocityFromAngle();
     }
@@ -31,9 +35,11 @@ public class WavePacket {
     };
 
     public WavePacket clone() {
-        WavePacket newPacket = new WavePacket(this.origin.clone(), this.angle, this.speed, this.amplitude, this.creationTime);
+        WavePacket newPacket = new WavePacket(this.origin.clone(), this.angle, this.speed, this.amplitude, this.creationTime, this.frequency);
         newPacket.velocity = this.velocity.clone();
         newPacket.origin = this.origin.clone();
+        newPacket.frequency = this.frequency;
+        newPacket.angularFrequency = this.angularFrequency;
 
         return newPacket;
     }
