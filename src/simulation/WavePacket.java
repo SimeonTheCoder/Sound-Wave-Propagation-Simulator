@@ -10,8 +10,10 @@ public class WavePacket {
     public double frequency;
     public double angularFrequency;
 
-    public Vec2 velocity;
-    public Vec2 origin;
+    public final Vec2 velocity = new Vec2(0, 0);
+    public final Vec2 origin;
+
+    private final Vec2 pos;
 
     public WavePacket(Vec2 origin, double angle, double speed, double amplitude, double creationTime, double frequency) {
         this.origin = origin;
@@ -22,22 +24,25 @@ public class WavePacket {
         this.frequency = frequency;
         this.angularFrequency = this.frequency * Math.PI * 2;
 
-        calculateVelocityFromAngle();
-    }
+        this.pos = origin.clone();
 
-    private void calculateVelocityFromAngle() {
-        this.velocity = Vec2.scale(new Vec2(Math.cos(this.angle), Math.sin(this.angle)), new Vec2(this.speed));
+        this.velocity.x = Math.cos(this.angle) * this.speed;
+        this.velocity.y = Math.sin(this.angle) * this.speed;
     }
 
     public Vec2 pos(double time) {
-        Vec2 offset = new Vec2((time - this.creationTime)).scale(this.velocity);
-        return offset.add(this.origin);
+        pos.x = (time - this.creationTime) * this.velocity.x + this.origin.x;
+        pos.y = (time - this.creationTime) * this.velocity.y + this.origin.y;
+
+        return pos;
     };
 
     public WavePacket clone() {
         WavePacket newPacket = new WavePacket(this.origin.clone(), this.angle, this.speed, this.amplitude, this.creationTime, this.frequency);
-        newPacket.velocity = this.velocity.clone();
-        newPacket.origin = this.origin.clone();
+
+        Vec2.copy(newPacket.velocity, this.velocity);
+        Vec2.copy(newPacket.origin, this.origin);
+
         newPacket.frequency = this.frequency;
         newPacket.angularFrequency = this.angularFrequency;
 

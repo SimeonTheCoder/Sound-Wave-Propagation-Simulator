@@ -6,7 +6,7 @@ public class Rect implements Obstacle {
     public Vec2 from;
     public Vec2 to;
 
-    public Vec2 center;
+    public final Vec2 center = new Vec2(0.5, 0.5);
 
     private final Vec2[] DIRECTIONS = {
             new Vec2(1, 0),
@@ -19,11 +19,12 @@ public class Rect implements Obstacle {
         this.from = from;
         this.to = to;
 
-        recalculateCenter();
+        calculateCenter();
     }
 
-    public void recalculateCenter() {
-        this.center = new Vec2(0.5 * from.x + 0.5 * to.x, 0.5 * from.y + 0.5 * to.y);
+    public void calculateCenter() {
+        this.center.x = 0.5 * from.x + 0.5 * to.x;
+        this.center.y = 0.5 * from.y + 0.5 * to.y;
     }
 
     @Override

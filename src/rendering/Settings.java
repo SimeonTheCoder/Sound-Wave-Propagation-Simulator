@@ -1,10 +1,10 @@
 package rendering;
 
 public class Settings {
-    public static final int WAVE_SEGMENTS = 360*5;
+    public static final int WAVE_SEGMENTS = 360;
 
     public static final int DELAY_MS = 1;
-    public static final int SUBSTEPS = 1000;
+    public static final int SUBSTEPS = 100;
     public static final double SCALE = 5;
 
     public static final int SAMPLE_RATE = 256_000;
@@ -15,7 +15,7 @@ public class Settings {
 
     public static final int FADE_FRAME_COUNT = 256;
 
-    public static final int THREAD_COUNT = 16;
+    public static final int THREAD_COUNT = 24;
 
     public static boolean RENDERING_ENABLED = false;
 }

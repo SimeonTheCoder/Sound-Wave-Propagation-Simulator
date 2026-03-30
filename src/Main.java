@@ -2,6 +2,7 @@ import output.AudioFileWriter;
 import rendering.Renderer;
 import scene.Scene;
 import scene.geometry.Rect;
+import simulation.SimulationThread;
 import simulation.WavePacket;
 import math.Vec2;
 import rendering.Settings;
@@ -103,18 +104,24 @@ public class Main {
 
         scene.attachSimulation(simulation);
 
+        long startSim = System.currentTimeMillis();
+
         simulation.start();
 
         if (Settings.RENDERING_ENABLED) {
             Renderer renderer = new Renderer(scene);
             Window window = new Window("Wave Propagation Sim v0.1", 1000, 1000, renderer);
+
+            while (!simulation.isFinished()) {}
+        } else {
+            for (SimulationThread thread : simulation.threads) {
+                thread.join();
+            }
         }
 
-//        for (SimulationThread thread : simulation.threads) {
-//            thread.join();
-//        }
+        long endSim = System.currentTimeMillis();
 
-        while (!simulation.isFinished()) {}
+        System.out.println("Simulation time (ms): " + (endSim - startSim));
 
         simulation.mergeSamples();
 

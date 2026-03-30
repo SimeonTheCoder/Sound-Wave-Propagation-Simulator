@@ -27,8 +27,10 @@ public class Simulation {
     }
 
     public void setListenerPos(Vec2 pos) {
-        for (SimulationThread thread : this.threads)
-            thread.listenerPos = pos.clone();
+        for (SimulationThread thread : this.threads) {
+            thread.listenerPos.x = pos.x;
+            thread.listenerPos.y = pos.y;
+        }
     }
 
     public void buildDistanceField() {

@@ -47,11 +47,6 @@ public class Vec2 {
         return Math.sqrt(this.x * this.x + this.y * this.y);
     }
 
-    public static Vec2 normalize(Vec2 vec) {
-        double l = vec.length();
-        return new Vec2(vec.x / l, vec.y / l);
-    }
-
     public Vec2 normalized() {
         double l = this.length();
 
@@ -63,5 +58,10 @@ public class Vec2 {
 
     public Vec2 clone() {
         return new Vec2(this.x, this.y);
+    }
+
+    public static void copy(Vec2 to, Vec2 from) {
+        to.x = from.x;
+        to.y = from.y;
     }
 }

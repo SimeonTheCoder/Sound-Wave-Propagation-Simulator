@@ -20,7 +20,8 @@ public class SimulationThread extends Thread {
 
     private double previousTime = 0;
 
-    public Vec2 listenerPos;
+    public final Vec2 listenerPos = new Vec2(0, 0);
+    private final Vec2 toMicVector = new Vec2(0, 0);
 
     public int threadIndex;
 
@@ -83,24 +84,28 @@ public class SimulationThread extends Thread {
     public void calculateReceivedSignal(double time, Vec2 currPos, WavePacket packet) {
         double travelledDistance = Math.max(0.01, time * 343.0 / 1000.0 * Settings.SCALE);
 
-        Vec2 toMicVector = Vec2.negative(currPos).add(listenerPos);
+        toMicVector.x = listenerPos.x - currPos.x;
+        toMicVector.y = listenerPos.y - currPos.y;
 
         double micCoefficient = toMicVector.length() * 120 + 1;
 
         double micStrength = Math.max(0, Math.min(1, 1.0 / (micCoefficient * micCoefficient * micCoefficient)));
 
-        double pan = Vec2.dot(toMicVector.length() > 0.01 ? Vec2.normalize(toMicVector) : new Vec2(0, 0), panVector);
+        double toMicVectorMagnitude = toMicVector.length();
 
-        double amplitude = Math.min(1, 1.0 / (travelledDistance * travelledDistance)) / Settings.WAVE_SEGMENTS / 343.0 / Settings.SUBSTEPS * packet.amplitude * micStrength;
+        double toMicVectorNormalizedX = toMicVectorMagnitude > 0.01 ? toMicVector.x / toMicVectorMagnitude : 0;
+        double toMicVectorNormalizedY = toMicVectorMagnitude > 0.01 ? toMicVector.y / toMicVectorMagnitude : 0;
+
+        double pan = toMicVectorNormalizedX * panVector.x + toMicVectorNormalizedY * panVector.y;
+
+        double amplitude = Math.min(1, 1.0 / travelledDistance / Settings.WAVE_SEGMENTS) / Settings.SUBSTEPS * packet.amplitude * micStrength;
         amplitude *= airAttenuation(packet.frequency, travelledDistance);
 
         int sampleIndex = (int) (time * Settings.SAMPLE_RATE / 343.0);
         if (sampleIndex < 0 || sampleIndex >= leftSamples.length) return;
 
-        double tau = time * Settings.SCALE;
-        double tSample = sampleIndex / (double) Settings.SAMPLE_RATE;
-
-        double phase = packet.angularFrequency * (tSample - tau);
+        double k = 2 * Math.PI * packet.frequency / 343.0;
+        double phase = k * travelledDistance;
 
         double contribution = amplitude * Math.cos(phase);
 
@@ -135,8 +140,12 @@ public class SimulationThread extends Thread {
 
         double dot = Vec2.dot(packet.velocity, collisionNormal);
 
-        packet.velocity = new Vec2(-2 * dot).scale(collisionNormal).add(packet.velocity);
-        packet.origin = prevPos;
+        packet.velocity.x = collisionNormal.x * (-2 * dot) + packet.velocity.x;
+        packet.velocity.y = collisionNormal.y * (-2 * dot) + packet.velocity.y;
+
+        packet.origin.x = prevPos.x;
+        packet.origin.y = prevPos.y;
+
         packet.creationTime = time;
         packet.amplitude *= reflectionCoefficient(packet.frequency);
     }
@@ -147,7 +156,7 @@ public class SimulationThread extends Thread {
     }
 
     public double airAttenuation(double frequency, double distance) {
-        double alpha = 0.0001 * frequency; // simple model
+        double alpha = 1e-8 * frequency * frequency;
         return Math.exp(-alpha * distance);
     }
 
