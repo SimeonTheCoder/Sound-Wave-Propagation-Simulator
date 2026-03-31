@@ -11,10 +11,18 @@ public class SimulationThread extends Thread {
     public double[] leftSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
     public double[] rightSamples = new double[(int) (Settings.SAMPLE_RATE * Settings.DURATION)];
 
-    public WavePacket[] wavePackets;
+    public double[] creationTimes;
+    public double[] amplitudes;
+    public double[] frequencies;
+
+    public double[] velocitiesX, velocitiesY;
+    public double[] originsX, originsY;
+
     public Obstacle[] obstacles;
 
-    private final double[][] distanceField = new double[100][100];
+    private final double[][] obstacleFieldNormalsX = new double[100][100];
+    private final double[][] obstacleFieldNormalsY = new double[100][100];
+    private final boolean[][] objectThere = new boolean[100][100];
 
     public volatile boolean finished = false;
 
@@ -30,16 +38,35 @@ public class SimulationThread extends Thread {
     public SimulationThread(Scene scene, int index) {
         this.threadIndex = index;
 
-        int startPacketIndex = scene.wavePackets.size() / Settings.THREAD_COUNT * threadIndex;
-        int endPacketIndex = scene.wavePackets.size() / Settings.THREAD_COUNT * (threadIndex + 1);
+        int wavePacketsAmount = scene.amplitudes.size();
+
+        int startPacketIndex = wavePacketsAmount / Settings.THREAD_COUNT * threadIndex;
+        int endPacketIndex = wavePacketsAmount / Settings.THREAD_COUNT * (threadIndex + 1);
 
         this.wavePacketCount = endPacketIndex - startPacketIndex;
 
-        this.wavePackets = new WavePacket[wavePacketCount];
+        this.creationTimes = new double[this.wavePacketCount];
+        this.amplitudes = new double[this.wavePacketCount];
+        this.frequencies = new double[this.wavePacketCount];
+
+        this.velocitiesX = new double[this.wavePacketCount];
+        this.velocitiesY = new double[this.wavePacketCount];
+
+        this.originsX = new double[this.wavePacketCount];
+        this.originsY = new double[this.wavePacketCount];
+
         this.obstacles = new Obstacle[scene.sceneGeometry.size()];
 
         for (int i = startPacketIndex; i < endPacketIndex; i ++) {
-            wavePackets[i - startPacketIndex] = scene.wavePackets.get(i).clone();
+            this.creationTimes[i - startPacketIndex] = scene.creationTimes.get(i);
+            this.amplitudes[i - startPacketIndex] = scene.amplitudes.get(i);
+            this.frequencies[i - startPacketIndex] = scene.frequencies.get(i);
+
+            this.velocitiesX[i - startPacketIndex] = scene.velocitiesX.get(i);
+            this.velocitiesY[i - startPacketIndex] = scene.velocitiesY.get(i);
+
+            this.originsX[i - startPacketIndex] = scene.originsX.get(i);
+            this.originsY[i - startPacketIndex] = scene.originsY.get(i);
         }
 
         for (int i = 0; i < obstacles.length; i ++) {
@@ -47,40 +74,63 @@ public class SimulationThread extends Thread {
         }
     }
 
-    public Obstacle getCollision(double posX, double posY) {
-        for (Obstacle obstacle : obstacles) {
-            if (obstacle.isInside(posX, posY)) return obstacle;
-        }
-
-        return null;
+    public double getCollisionNormalX(double posX, double posY) {
+        return this.obstacleFieldNormalsX[(int) (posX * 100)][(int) (posY * 100)];
     }
 
-    public double getMinDistance(double posX, double posY) {
-        double minDistance = 1000;
-
-        for (Obstacle obstacle : obstacles) {
-            minDistance = Math.min(minDistance, obstacle.distance(posX, posY));
-        }
-
-        return minDistance;
+    public double getCollisionNormalY(double posX, double posY) {
+        return this.obstacleFieldNormalsY[(int) (posX * 100)][(int) (posY * 100)];
     }
 
     public void buildDistanceField() {
         for (int i = 0; i < 100; i ++) {
             for (int j = 0; j < 100; j ++) {
-                this.distanceField[i][j] = getMinDistance(i * 0.01, j * 0.01) - 0.1;
+                for (Obstacle obstacle : obstacles) {
+//                    if (!obstacle.isInside(i * 0.01, j * 0.01)) continue;
+
+                    if (i > 0 && j > 0 && i < 99 && j < 99) {
+                        if (obstacle.isInside(i * 0.01, j * 0.01)) {
+                            this.obstacleFieldNormalsX[i][j] = obstacle.normalX(i * 0.01, j * 0.01);
+                            this.obstacleFieldNormalsY[i][j] = obstacle.normalY(i * 0.01, j * 0.01);
+                        }
+
+                        if (obstacle.isInside((i + 1) * 0.01, j * 0.01)) {
+                            this.obstacleFieldNormalsX[i][j] += obstacle.normalX(i * 0.01, j * 0.01);
+                            this.obstacleFieldNormalsY[i][j] += obstacle.normalY(i * 0.01, j * 0.01);
+                        }
+
+                        if (obstacle.isInside((i - 1) * 0.01, j * 0.01)) {
+                            this.obstacleFieldNormalsX[i][j] += obstacle.normalX(i * 0.01, j * 0.01);
+                            this.obstacleFieldNormalsY[i][j] += obstacle.normalY(i * 0.01, j * 0.01);
+                        }
+
+                        if (obstacle.isInside(i * 0.01, (j + 1) * 0.01)) {
+                            this.obstacleFieldNormalsX[i][j] += obstacle.normalX(i * 0.01, j * 0.01);
+                            this.obstacleFieldNormalsY[i][j] += obstacle.normalY(i * 0.01, j * 0.01);
+                        }
+
+                        if (obstacle.isInside(i * 0.01, (j - 1) * 0.01)) {
+                            this.obstacleFieldNormalsX[i][j] += obstacle.normalX(i * 0.01, j * 0.01);
+                            this.obstacleFieldNormalsY[i][j] += obstacle.normalY(i * 0.01, j * 0.01);
+                        }
+
+                        double l = Math.sqrt(this.obstacleFieldNormalsX[i][j] * this.obstacleFieldNormalsX[i][j] + this.obstacleFieldNormalsY[i][j] * this.obstacleFieldNormalsY[i][j]);
+
+                        if (l > 0) {
+                            this.obstacleFieldNormalsX[i][j] /= l;
+                            this.obstacleFieldNormalsY[i][j] /= l;
+
+                            this.objectThere[i][j] = true;
+                        }
+                    }
+
+//                    break;
+                }
             }
         }
     }
 
-    private boolean checkDistanceField(double posX, double posY) {
-        int cellX = (int) (posX * 100);
-        int cellY = (int) (posY * 100);
-
-        return distanceField[cellY][cellX] > 0;
-    }
-
-    public void calculateReceivedSignal(double time, double currPosX, double currPosY, WavePacket packet) {
+    public void calculateReceivedSignal(double time, double currPosX, double currPosY, double packetAmplitude, double frequency) {
         double travelledDistance = Math.max(0.01, time * 0.343 * Settings.SCALE);
 
         double toMicVectorX = listenerPosX - currPosX;
@@ -97,13 +147,13 @@ public class SimulationThread extends Thread {
 
         double pan = toMicVectorNormalizedX * panX + toMicVectorNormalizedY * panY;
 
-        double amplitude = Math.min(1, 1.0 / travelledDistance / Settings.WAVE_SEGMENTS) / Settings.SUBSTEPS * packet.amplitude * micStrength;
-        amplitude *= airAttenuation(packet.frequency, travelledDistance);
+        double amplitude = Math.min(1, 1.0 / travelledDistance / Settings.WAVE_SEGMENTS) / Settings.SUBSTEPS * packetAmplitude * micStrength;
+        amplitude *= airAttenuation(frequency, travelledDistance);
 
         int sampleIndex = (int) (time * Settings.SAMPLE_RATE / 343.0);
         if (sampleIndex < 0 || sampleIndex >= leftSamples.length) return;
 
-        double k = 2 * Math.PI * packet.frequency / 343.0;
+        double k = 2 * Math.PI * frequency / 343.0;
         double phase = k * travelledDistance;
 
         double contribution = amplitude * Math.cos(phase);
@@ -122,38 +172,49 @@ public class SimulationThread extends Thread {
         }
     }
 
-    public void handleWavePacket(WavePacket packet, double time) {
-        double currPosX = packet.posX(time);
-        double currPosY = packet.posY(time);
+    public void handleWavePacket(int index, double time) {
+        double creationTime = this.creationTimes[index];
+        double amplitude = this.amplitudes[index];
+        double frequency = this.frequencies[index];
+        double velocityX = this.velocitiesX[index];
+        double velocityY = this.velocitiesY[index];
+        double originX = this.originsX[index];
+        double originY = this.originsY[index];
 
-        calculateReceivedSignal(time, currPosX, currPosY, packet);
+        double currPosX = (time - creationTime) * velocityX + originX;
+        double currPosY = (time - creationTime) * velocityY + originY;
 
-        if (checkDistanceField(currPosX, currPosY))
-            return;
+        calculateReceivedSignal(time, currPosX, currPosY, amplitude, frequency);
 
-        Obstacle collidingObject = getCollision(currPosX, currPosY);
-
-        if (collidingObject == null)
-            return;
+        if (!objectThere[(int) (currPosX * 100)][(int) (currPosY * 100)]) return;
 
         double prevTime = time - Settings.TIMESTEP / Settings.SUBSTEPS * 2;
 
-        double prevPosX = packet.posX(prevTime);
-        double prevPosY = packet.posY(prevTime);
+        double prevPosX = (prevTime - creationTime) * velocityX + originX;
+        double prevPosY = (prevTime - creationTime) * velocityY + originY;
 
-        double normalX = collidingObject.normalX(prevPosX, prevPosY);
-        double normalY = collidingObject.normalY(prevPosX, prevPosY);
+        double normalX = getCollisionNormalX(currPosX, currPosY);
+        double normalY = getCollisionNormalY(currPosX, currPosY);
 
-        double dot = packet.velocityX * normalX + packet.velocityY * normalY;
+        double dot = velocityX * normalX + velocityY * normalY;
 
-        packet.velocityX = normalX * (-2 * dot) + packet.velocityX;
-        packet.velocityY = normalY * (-2 * dot) + packet.velocityY;
+        velocityX = normalX * (-2 * dot) + velocityX;
+        velocityY = normalY * (-2 * dot) + velocityY;
 
-        packet.originX = prevPosX;
-        packet.originY = prevPosY;
+        originX = prevPosX + normalX * 0.001;
+        originY = prevPosY + normalY * 0.001;
 
-        packet.creationTime = time;
-        packet.amplitude *= reflectionCoefficient(packet.frequency);
+        creationTime = time;
+        amplitude *= reflectionCoefficient(frequency);
+
+        this.creationTimes[index] = creationTime;
+        this.amplitudes[index] = amplitude;
+
+        this.velocitiesX[index] = velocityX;
+        this.velocitiesY[index] = velocityY;
+
+        this.originsX[index] = originX;
+        this.originsY[index] = originY;
     }
 
     public double reflectionCoefficient(double frequency) {
@@ -179,12 +240,15 @@ public class SimulationThread extends Thread {
             return;
         }
 
-        for (int i = 0; i < Settings.SUBSTEPS; i++) {
-            double k = (i / ((double) Settings.SUBSTEPS));
-            double timeInterpolated = this.time * k + this.previousTime * (1 - k);
+        for (int j = 0; j < this.wavePacketCount; j++) {
+            for (int i = 0; i < Settings.SUBSTEPS; i++) {
+                double k = (i / ((double) Settings.SUBSTEPS));
+                double timeInterpolated = this.time * k + this.previousTime * (1 - k);
 
-            for (int j = 0; j < this.wavePacketCount; j ++) {
-                handleWavePacket(this.wavePackets[j], timeInterpolated);
+                handleWavePacket(
+                        j,
+                        timeInterpolated
+                );
             }
         }
 

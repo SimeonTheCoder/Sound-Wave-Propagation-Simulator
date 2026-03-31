@@ -31,9 +31,17 @@ public class Renderer {
 //        }
 
         for (int j = 0; j < scene.simulation.threads.length; j ++) {
-            for (int i = 0; i < scene.simulation.threads[j].wavePackets.length; i++) {
-                double currPosX = scene.simulation.threads[j].wavePackets[i].posX(this.scene.simulation.canonicalTime) * width;
-                double currPosY = scene.simulation.threads[j].wavePackets[i].posY(this.scene.simulation.canonicalTime) * height;
+            for (int i = 0; i < scene.simulation.threads[j].amplitudes.length; i++) {
+                double creationTime = scene.simulation.threads[j].creationTimes[i];
+
+                double velocityX = scene.simulation.threads[j].velocitiesX[i];
+                double velocityY = scene.simulation.threads[j].velocitiesY[i];
+
+                double originX = scene.simulation.threads[j].originsX[i];
+                double originY = scene.simulation.threads[j].originsY[i];
+
+                double currPosX = ((scene.simulation.canonicalTime - creationTime) * velocityX + originX) * width;
+                double currPosY = ((scene.simulation.canonicalTime - creationTime) * velocityY + originY) * height;
 
 //                System.out.println(currPos.x + " " + currPos.y);
                 g.fillRect((int) currPosX, (int) currPosY, 5, 5);

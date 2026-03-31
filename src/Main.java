@@ -3,7 +3,6 @@ import rendering.Renderer;
 import scene.Scene;
 import scene.geometry.Rect;
 import simulation.SimulationThread;
-import simulation.WavePacket;
 import rendering.Settings;
 import simulation.Simulation;
 import window.Window;
@@ -81,15 +80,13 @@ public class Main {
 
         for (int i = 0; i < Settings.WAVE_SEGMENTS; i ++) {
             for (int j = 100; j < 10_000; j += 100) {
-                scene.wavePackets.add(
-                        new WavePacket(
-                                0.51, 0.5,
-                                ((double) i / Settings.WAVE_SEGMENTS) * 360.0,
-                                1,
-                                10000000,
-                                0,
-                                j
-                        )
+                scene.addPacket(
+                    0.51, 0.5,
+                    ((double) i / Settings.WAVE_SEGMENTS) * 360.0,
+                    1,
+                    10000000,
+                    0,
+                    j
                 );
             }
         }
