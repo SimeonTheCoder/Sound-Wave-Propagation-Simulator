@@ -1,12 +1,12 @@
 package scene.geometry;
 
-import math.Vec2;
-
 public interface Obstacle {
-    boolean isInside (Vec2 pos);
+    boolean isInside (double posX, double posY);
 
-    Vec2 normal (Vec2 pos);
-    double distance (Vec2 pos);
+    double normalX (double posX, double posY);
+    double normalY (double posX, double posY);
+
+    double distance (double posX, double posY);
 
     Obstacle clone();
 }

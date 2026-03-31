@@ -20,13 +20,12 @@ public class SimulationThread extends Thread {
 
     private double previousTime = 0;
 
-    public final Vec2 listenerPos = new Vec2(0, 0);
-    private final Vec2 toMicVector = new Vec2(0, 0);
+    public double panX = 0, panY = 1;
+    public double listenerPosX, listenerPosY;
 
     public int threadIndex;
 
     private final int wavePacketCount;
-    private final Vec2 panVector = new Vec2(0, -1);
 
     public SimulationThread(Scene scene, int index) {
         this.threadIndex = index;
@@ -48,19 +47,19 @@ public class SimulationThread extends Thread {
         }
     }
 
-    public Obstacle getCollision(Vec2 pos) {
+    public Obstacle getCollision(double posX, double posY) {
         for (Obstacle obstacle : obstacles) {
-            if (obstacle.isInside(pos)) return obstacle;
+            if (obstacle.isInside(posX, posY)) return obstacle;
         }
 
         return null;
     }
 
-    public double getMinDistance(Vec2 pos) {
+    public double getMinDistance(double posX, double posY) {
         double minDistance = 1000;
 
         for (Obstacle obstacle : obstacles) {
-            minDistance = Math.min(minDistance, obstacle.distance(pos));
+            minDistance = Math.min(minDistance, obstacle.distance(posX, posY));
         }
 
         return minDistance;
@@ -69,34 +68,34 @@ public class SimulationThread extends Thread {
     public void buildDistanceField() {
         for (int i = 0; i < 100; i ++) {
             for (int j = 0; j < 100; j ++) {
-                this.distanceField[i][j] = getMinDistance(new Vec2(i / 100.0, j / 100.0)) - 0.1;
+                this.distanceField[i][j] = getMinDistance(i * 0.01, j * 0.01) - 0.1;
             }
         }
     }
 
-    private boolean checkDistanceField(Vec2 pos) {
-        int cellX = (int) (pos.x * 100);
-        int cellY = (int) (pos.y * 100);
+    private boolean checkDistanceField(double posX, double posY) {
+        int cellX = (int) (posX * 100);
+        int cellY = (int) (posY * 100);
 
         return distanceField[cellY][cellX] > 0;
     }
 
-    public void calculateReceivedSignal(double time, Vec2 currPos, WavePacket packet) {
-        double travelledDistance = Math.max(0.01, time * 343.0 / 1000.0 * Settings.SCALE);
+    public void calculateReceivedSignal(double time, double currPosX, double currPosY, WavePacket packet) {
+        double travelledDistance = Math.max(0.01, time * 0.343 * Settings.SCALE);
 
-        toMicVector.x = listenerPos.x - currPos.x;
-        toMicVector.y = listenerPos.y - currPos.y;
+        double toMicVectorX = listenerPosX - currPosX;
+        double toMicVectorY = listenerPosY - currPosY;
 
-        double micCoefficient = toMicVector.length() * 120 + 1;
+        double toMicVectorLength = Vec2.length(toMicVectorX, toMicVectorY);
+//        double micCoefficient =  toMicVectorLength * 120 + 1;
 
-        double micStrength = Math.max(0, Math.min(1, 1.0 / (micCoefficient * micCoefficient * micCoefficient)));
+        double micStrength = 1;
+//        double micStrength = Math.max(0, Math.min(1, 1.0 / (micCoefficient * micCoefficient * micCoefficient)));
 
-        double toMicVectorMagnitude = toMicVector.length();
+        double toMicVectorNormalizedX = toMicVectorLength > 0.01 ? toMicVectorX / toMicVectorLength : 0;
+        double toMicVectorNormalizedY = toMicVectorLength > 0.01 ? toMicVectorY / toMicVectorLength : 0;
 
-        double toMicVectorNormalizedX = toMicVectorMagnitude > 0.01 ? toMicVector.x / toMicVectorMagnitude : 0;
-        double toMicVectorNormalizedY = toMicVectorMagnitude > 0.01 ? toMicVector.y / toMicVectorMagnitude : 0;
-
-        double pan = toMicVectorNormalizedX * panVector.x + toMicVectorNormalizedY * panVector.y;
+        double pan = toMicVectorNormalizedX * panX + toMicVectorNormalizedY * panY;
 
         double amplitude = Math.min(1, 1.0 / travelledDistance / Settings.WAVE_SEGMENTS) / Settings.SUBSTEPS * packet.amplitude * micStrength;
         amplitude *= airAttenuation(packet.frequency, travelledDistance);
@@ -124,27 +123,34 @@ public class SimulationThread extends Thread {
     }
 
     public void handleWavePacket(WavePacket packet, double time) {
-        Vec2 currPos = packet.pos(time);
-        calculateReceivedSignal(time, currPos, packet);
+        double currPosX = packet.posX(time);
+        double currPosY = packet.posY(time);
 
-        if (checkDistanceField(currPos))
+        calculateReceivedSignal(time, currPosX, currPosY, packet);
+
+        if (checkDistanceField(currPosX, currPosY))
             return;
 
-        Obstacle collidingObject = getCollision(currPos);
+        Obstacle collidingObject = getCollision(currPosX, currPosY);
 
         if (collidingObject == null)
             return;
 
-        Vec2 prevPos = packet.pos(time - Settings.DELAY_MS / 1000.0 / Settings.SUBSTEPS * 2);
-        Vec2 collisionNormal = collidingObject.normal(prevPos);
+        double prevTime = time - Settings.TIMESTEP / Settings.SUBSTEPS * 2;
 
-        double dot = Vec2.dot(packet.velocity, collisionNormal);
+        double prevPosX = packet.posX(prevTime);
+        double prevPosY = packet.posY(prevTime);
 
-        packet.velocity.x = collisionNormal.x * (-2 * dot) + packet.velocity.x;
-        packet.velocity.y = collisionNormal.y * (-2 * dot) + packet.velocity.y;
+        double normalX = collidingObject.normalX(prevPosX, prevPosY);
+        double normalY = collidingObject.normalY(prevPosX, prevPosY);
 
-        packet.origin.x = prevPos.x;
-        packet.origin.y = prevPos.y;
+        double dot = packet.velocityX * normalX + packet.velocityY * normalY;
+
+        packet.velocityX = normalX * (-2 * dot) + packet.velocityX;
+        packet.velocityY = normalY * (-2 * dot) + packet.velocityY;
+
+        packet.originX = prevPosX;
+        packet.originY = prevPosY;
 
         packet.creationTime = time;
         packet.amplitude *= reflectionCoefficient(packet.frequency);
@@ -166,7 +172,7 @@ public class SimulationThread extends Thread {
     }
 
     public void step() {
-        this.time += Settings.DELAY_MS / 1000.0;
+        this.time += Settings.TIMESTEP;
 
         if (this.time >= Settings.DURATION * 343) {
             finished = true;

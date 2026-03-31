@@ -4,7 +4,6 @@ import scene.Scene;
 import scene.geometry.Rect;
 import simulation.SimulationThread;
 import simulation.WavePacket;
-import math.Vec2;
 import rendering.Settings;
 import simulation.Simulation;
 import window.Window;
@@ -13,29 +12,29 @@ public class Main {
     private static void setupSceneGeometry(Scene scene) {
         scene.sceneGeometry.add(
                 new Rect(
-                        new Vec2(0, 0),
-                        new Vec2(0.1, 1)
+                        0, 0,
+                        0.1, 1
                 )
         );
 
         scene.sceneGeometry.add(
                 new Rect(
-                        new Vec2(0, 0),
-                        new Vec2(1, 0.1)
+                        0, 0,
+                        1, 0.1
                 )
         );
 
         scene.sceneGeometry.add(
                 new Rect(
-                        new Vec2(0, 0.9),
-                        new Vec2(1, 1)
+                        0, 0.9,
+                        1, 1
                 )
         );
 
         scene.sceneGeometry.add(
                 new Rect(
-                        new Vec2(0.9, 0.0),
-                        new Vec2(1, 1)
+                        0.9, 0.0,
+                        1, 1
                 )
         );
 
@@ -84,7 +83,7 @@ public class Main {
             for (int j = 100; j < 10_000; j += 100) {
                 scene.wavePackets.add(
                         new WavePacket(
-                                new Vec2(0.51, 0.5),
+                                0.51, 0.5,
                                 ((double) i / Settings.WAVE_SEGMENTS) * 360.0,
                                 1,
                                 10000000,
@@ -99,7 +98,7 @@ public class Main {
 
         Simulation simulation = new Simulation(scene);
 
-        simulation.setListenerPos(new Vec2(0.49, 0.5));
+        simulation.setListenerPos(0.49, 0.5);
         simulation.buildDistanceField();
 
         scene.attachSimulation(simulation);

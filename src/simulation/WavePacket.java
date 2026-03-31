@@ -1,7 +1,5 @@
 package simulation;
 
-import math.Vec2;
-
 public class WavePacket {
     public double speed;
     public double creationTime;
@@ -10,13 +8,13 @@ public class WavePacket {
     public double frequency;
     public double angularFrequency;
 
-    public final Vec2 velocity = new Vec2(0, 0);
-    public final Vec2 origin;
+    public double velocityX, velocityY;
+    public double originX, originY;
 
-    private final Vec2 pos;
+    public WavePacket(double originX, double originY, double angle, double speed, double amplitude, double creationTime, double frequency) {
+        this.originX = originX;
+        this.originY = originY;
 
-    public WavePacket(Vec2 origin, double angle, double speed, double amplitude, double creationTime, double frequency) {
-        this.origin = origin;
         this.angle = Math.toRadians(angle);
         this.speed = speed;
         this.creationTime = creationTime;
@@ -24,24 +22,23 @@ public class WavePacket {
         this.frequency = frequency;
         this.angularFrequency = this.frequency * Math.PI * 2;
 
-        this.pos = origin.clone();
-
-        this.velocity.x = Math.cos(this.angle) * this.speed;
-        this.velocity.y = Math.sin(this.angle) * this.speed;
+        this.velocityX = Math.cos(this.angle) * this.speed;
+        this.velocityY = Math.sin(this.angle) * this.speed;
     }
 
-    public Vec2 pos(double time) {
-        pos.x = (time - this.creationTime) * this.velocity.x + this.origin.x;
-        pos.y = (time - this.creationTime) * this.velocity.y + this.origin.y;
+    public double posX(double time) {
+        return (time - this.creationTime) * this.velocityX + this.originX;
+    };
 
-        return pos;
+    public double posY(double time) {
+        return (time - this.creationTime) * this.velocityY + this.originY;
     };
 
     public WavePacket clone() {
-        WavePacket newPacket = new WavePacket(this.origin.clone(), this.angle, this.speed, this.amplitude, this.creationTime, this.frequency);
+        WavePacket newPacket = new WavePacket(this.originX, this.originY, this.angle, this.speed, this.amplitude, this.creationTime, this.frequency);
 
-        Vec2.copy(newPacket.velocity, this.velocity);
-        Vec2.copy(newPacket.origin, this.origin);
+        newPacket.velocityX = this.velocityX;
+        newPacket.velocityY = this.velocityY;
 
         newPacket.frequency = this.frequency;
         newPacket.angularFrequency = this.angularFrequency;

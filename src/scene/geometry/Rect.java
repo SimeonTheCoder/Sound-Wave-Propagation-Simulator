@@ -1,57 +1,61 @@
 package scene.geometry;
 
-import math.Vec2;
-
 public class Rect implements Obstacle {
-    public Vec2 from;
-    public Vec2 to;
+    public double fromX;
+    public double fromY;
 
-    public final Vec2 center = new Vec2(0.5, 0.5);
+    public double toX;
+    public double toY;
 
-    private final Vec2[] DIRECTIONS = {
-            new Vec2(1, 0),
-            new Vec2(-1, 0),
-            new Vec2(0, 1),
-            new Vec2(0, -1)
-    };
+    public double centerX = 0.5;
+    public double centerY = 0.5;
 
-    public Rect(Vec2 from, Vec2 to) {
-        this.from = from;
-        this.to = to;
+    public Rect(double fromX, double fromY, double toX, double toY) {
+        this.fromX = fromX;
+        this.fromY = fromY;
+
+        this.toX = toX;
+        this.toY = toY;
 
         calculateCenter();
     }
 
     public void calculateCenter() {
-        this.center.x = 0.5 * from.x + 0.5 * to.x;
-        this.center.y = 0.5 * from.y + 0.5 * to.y;
+        this.centerX = 0.5 * fromX + 0.5 * toX;
+        this.centerY = 0.5 * fromY + 0.5 * toY;
     }
 
     @Override
-    public boolean isInside(Vec2 pos) {
-        return (pos.x >= from.x && pos.x <= to.x) && (pos.y >= from.y && pos.y <= to.y);
+    public boolean isInside(double posX, double posY) {
+        return (posX >= fromX && posX <= toX) && (posY >= fromY && posY <= toY);
     }
 
     @Override
-    public Vec2 normal(Vec2 pos) {
-        if (pos.x > to.x) return DIRECTIONS[0];
-        if (pos.x < from.x) return DIRECTIONS[1];
-        if (pos.y > to.y) return DIRECTIONS[2];
-        if (pos.y < from.y) return DIRECTIONS[3];
+    public double normalX(double posX, double posY) {
+        if (posX > toX) return 1;
+        if (posX < fromX) return -1;
 
-        return Vec2.negative(pos).add(center).normalized();
+        return 0;
     }
 
     @Override
-    public double distance(Vec2 pos) {
-        if (pos.x > to.x) {
-            return pos.x - to.x;
-        } else if (pos.x < from.x) {
-            return from.x - pos.x;
-        } else if (pos.y < from.y) {
-            return from.y - pos.y;
-        } else if (pos.y > to.y) {
-            return to.y - pos.y;
+    public double normalY(double posX, double posY) {
+        if (posY > toY) return 1;
+        if (posY < fromY) return -1;
+
+        return 0;
+    }
+
+    @Override
+    public double distance(double posX, double posY) {
+        if (posX > toX) {
+            return posX - toX;
+        } else if (posX < fromX) {
+            return fromX - posX;
+        } else if (posY < fromY) {
+            return fromY - posY;
+        } else if (posY > toY) {
+            return toY - posY;
         }
 
         return -1;
@@ -59,6 +63,6 @@ public class Rect implements Obstacle {
 
     @Override
     public Obstacle clone() {
-        return new Rect(from.clone(), to.clone());
+        return new Rect(fromX, fromY, toX, toY);
     }
 }

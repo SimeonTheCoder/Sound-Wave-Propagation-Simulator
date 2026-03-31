@@ -3,7 +3,7 @@ package rendering;
 public class Settings {
     public static final int WAVE_SEGMENTS = 360;
 
-    public static final int DELAY_MS = 1;
+    public static final double TIMESTEP = 0.001;
     public static final int SUBSTEPS = 100;
     public static final double SCALE = 5;
 

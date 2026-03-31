@@ -1,6 +1,5 @@
 package scene;
 
-import math.Vec2;
 import scene.geometry.Obstacle;
 import simulation.Simulation;
 import simulation.WavePacket;
@@ -20,23 +19,8 @@ public class Scene {
         this.wavePackets = new ArrayList<>();
         this.sceneGeometry = new ArrayList<>();
     }
-//
+
     public void attachSimulation(Simulation simulation) {
         this.simulation = simulation;
-    }
-
-//    public void tick() {
-//        this.time += (Settings.DELAY_MS / 1000.0);
-//        this.simulation.step();
-//    }
-
-    public double getMinDistance(Vec2 pos) {
-        double minDistance = 1000;
-
-        for (Obstacle obstacle : this.sceneGeometry) {
-            minDistance = Math.min(minDistance, obstacle.distance(pos));
-        }
-
-        return minDistance;
     }
 }

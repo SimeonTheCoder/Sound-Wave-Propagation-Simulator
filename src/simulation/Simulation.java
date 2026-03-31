@@ -1,7 +1,6 @@
 package simulation;
 
 import scene.Scene;
-import math.Vec2;
 import rendering.Settings;
 
 import java.util.Arrays;
@@ -26,10 +25,10 @@ public class Simulation {
         }
     }
 
-    public void setListenerPos(Vec2 pos) {
+    public void setListenerPos(double posX, double posY) {
         for (SimulationThread thread : this.threads) {
-            thread.listenerPos.x = pos.x;
-            thread.listenerPos.y = pos.y;
+            thread.listenerPosX = posX;
+            thread.listenerPosY = posY;
         }
     }
 
